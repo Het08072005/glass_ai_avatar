@@ -15,6 +15,14 @@ export default defineConfig(({ mode }) => {
 
     // Development server configuration
     server: {
+      host: true, // allow external access (e.g., through Caddy)
+      allowedHosts: ["ui.34.235.32.139.nip.io"], // explicitly whitelist your domain
+
+      // Configure HMR for production (AWS) if using the nip.io domain
+      hmr: apiTarget.includes("nip.io") ? {
+        clientPort: 443
+      } : undefined,
+
       proxy: {
         "/api": {
           target: apiTarget,

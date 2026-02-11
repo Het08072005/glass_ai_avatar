@@ -1,0 +1,21 @@
+# Caddyfile for AWS Deployment
+
+# Frontend Domain (UI)
+ui.34.235.32.139.nip.io {
+    # Proxy /glasses to backend (for 3D models/images if served relatively)
+    reverse_proxy /glasses/* localhost:8000
+
+    # Proxy to Vite dev server (npm run dev)
+    reverse_proxy localhost:5173
+
+    # For Production Build (Uncomment and use this instead of reverse_proxy above)
+    # root * frontend/dist
+    # file_server
+    # try_files {path} /index.html
+}
+
+# Backend Domain (API)
+api.34.235.32.139.nip.io {
+    # Proxy to FastAPI backend (uvicorn)
+    reverse_proxy localhost:8000
+}

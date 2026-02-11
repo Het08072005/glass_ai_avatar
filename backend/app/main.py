@@ -36,6 +36,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 allowed_origins = [
     "http://localhost:5173",  # Local development
     "http://127.0.0.1:5173",  # Local development alternative
+    "https://ui.34.235.32.139.nip.io", # Explicit AWS deployment domain
     FRONTEND_URL,  # Production frontend URL from .env
 ]
 
