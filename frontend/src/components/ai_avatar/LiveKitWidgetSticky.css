@@ -1,0 +1,277 @@
+/* Sticky Widget Container */
+.livekit-widget-sticky {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Floating Button */
+.ai-concierge-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 80px;
+  height: 80px;
+  padding: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #eab308 0%, #facc15 100%);
+  color: #1a1a1a;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(234, 179, 8, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.2;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(10px);
+  outline: none;
+}
+
+.ai-concierge-button:hover {
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 8px 30px rgba(234, 179, 8, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.ai-concierge-button:active {
+  transform: scale(0.95);
+}
+
+.button-icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.5;
+}
+
+.button-text {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Widget Panel */
+.livekit-widget-panel {
+  position: fixed;
+  bottom: 110px;
+  right: 20px;
+  width: 360px;
+  height: 550px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Widget Header */
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #eab308 0%, #facc15 100%);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.widget-title {
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+}
+
+.widget-subtitle {
+  margin: 2px 0 0 0;
+  padding: 0;
+  font-size: 12px;
+  color: rgba(26, 26, 26, 0.7);
+  font-weight: 500;
+}
+
+.close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  cursor: pointer;
+  color: #1a1a1a;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.close-button:hover {
+  background: rgba(0, 0, 0, 0.15);
+  transform: scale(1.05);
+}
+
+.close-button:active {
+  transform: scale(0.95);
+}
+
+.close-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3;
+}
+
+/* Widget Content */
+.widget-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8f9fa;
+  position: relative;
+}
+
+/* Connecting State */
+.connecting-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  padding: 20px;
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #eab308;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.connecting-text {
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+}
+
+/* Error State */
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 20px;
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  padding: 0;
+}
+
+.retry-button {
+  padding: 10px 20px;
+  background: #eab308;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.retry-button:hover {
+  background: #facc15;
+  transform: translateY(-2px);
+}
+
+.retry-button:active {
+  transform: translateY(0);
+}
+
+/* LiveKit Components Override */
+.widget-content .voice-assistant-container {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  padding: 12px;
+}
+
+.widget-content .visualizer-container {
+  height: 80px;
+  margin: 0;
+}
+
+.widget-content .control-section {
+  margin-top: 12px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .livekit-widget-panel {
+    width: calc(100vw - 40px);
+    height: calc(100vh - 140px);
+    right: 20px;
+    bottom: 110px;
+  }
+
+  .ai-concierge-button {
+    width: 70px;
+    height: 70px;
+  }
+
+  .widget-title {
+    font-size: 16px;
+  }
+
+  .widget-subtitle {
+    font-size: 11px;
+  }
+}
+
+/* Ensure widget is visible above other content */
+.livekit-widget-sticky {
+  pointer-events: auto;
+}
+
+.livekit-widget-sticky .ai-concierge-button,
+.livekit-widget-sticky .livekit-widget-panel {
+  pointer-events: auto;
+}
