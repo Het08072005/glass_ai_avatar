@@ -1,10 +1,12 @@
 import httpx
 import json
+import os
 import asyncio
 from livekit.agents import function_tool, RunContext, ToolError
 # from app.websocket.manager import manager
 
-FASTAPI_URL = "http://127.0.0.1:8000/api/search"
+# Use internal URL for server-side communication
+FASTAPI_URL = os.getenv("INTERNAL_API_URL", "http://127.0.0.1:8000") + "/api/search"
 
 # ⚡ GLOBAL HTTP CLIENT FOR CONNECTION POOLING (Critical for Latency)
 http_client = httpx.AsyncClient(timeout=8.0)
@@ -91,7 +93,8 @@ async def end_conversation(ctx: RunContext):
     
     try:
         # Use global client for broadcast too
-        await http_client.post("http://127.0.0.1:8000/broadcast", json={"type": "END_SESSION"})
+        base_url = os.getenv("INTERNAL_API_URL", "http://127.0.0.1:8000")
+        await http_client.post(f"{base_url}/broadcast", json={"type": "END_SESSION"})
     except Exception as e:
         print(f"Broadcast failed: {e}")
 

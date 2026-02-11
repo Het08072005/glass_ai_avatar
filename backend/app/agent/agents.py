@@ -16,11 +16,10 @@ from livekit.agents import (
     AgentSession,
     Agent,
     room_io,
-    inference,
 )
 from livekit.plugins import bey, deepgram, silero
-from tools import search_products, end_conversation
-from prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
+from app.agent.tools import search_products, end_conversation
+from app.agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
 
 load_dotenv()
 
@@ -30,6 +29,7 @@ LOW_LATENCY_MODE = True
 
 server = AgentServer()
 USER_SILENCE_TIMEOUT = 300
+
 
 
 class Assistant(Agent):
@@ -47,9 +47,19 @@ class Assistant(Agent):
         self.user_speaking = False
 
     async def on_user_message(self, message: str):
+        # This is called when the Agent has fully processed a turn
+        # But we want to catch speech earlier
         self.last_user_time = time.time()
         self.user_speaking = False
-        print("User:", message)
+        print("User (Final Message):", message)
+
+    async def on_user_transcript(self, transcript):
+        # 🔧 Handles both interim and final transcripts
+        if hasattr(transcript, "text") and transcript.text.strip():
+            self.last_user_time = time.time()
+            self.user_speaking = True
+            is_final = getattr(transcript, "final", False)
+            print(f"Transcript ({'Final' if is_final else 'Interim'}): {transcript.text}")
 
     async def on_tool_result(self, name: str, result):
         if name == "end_conversation" and "CONVERSATION_ENDED" in result:
@@ -65,13 +75,19 @@ class Assistant(Agent):
 @server.rtc_session()
 async def my_agent(ctx: agents.JobContext):
     try:
-        # STT: Nova-2 Conversational AI = fastest for voice agents (realtime streaming)
-        stt = inference.STT(model="deepgram/nova-2-conversationalai", language="en-US")
+        print("🔗 Connecting to Room:", ctx.room.name)
+        
+        # Check keys
+        if not os.getenv("DEEPGRAM_API_KEY"):
+            print("❌ DEEPGRAM_API_KEY missing - STT/TTS will fail")
+        
+        # STT: Nova-2 Conversational AI
+        stt = deepgram.STT(model="nova-2-conversationalai", language="en-US")
 
-        # TTS: Aura Asteria = high quality, fast
+        # TTS: Aura Asteria
         tts = deepgram.TTS(model="aura-asteria-en")
 
-        # VAD: aggressive chunking — shorter silence = faster first word (0.2s)
+        # VAD: aggressive chunking
         vad = silero.VAD.load(min_silence_duration=0.2)
 
         session = AgentSession(
@@ -79,7 +95,7 @@ async def my_agent(ctx: agents.JobContext):
             llm="google/gemini-3-flash-preview",
             tts=tts,
             vad=vad,
-            preemptive_generation=True,  # Start LLM/TTS as soon as transcript ready
+            preemptive_generation=True,  # Restore standard behavior
         )
 
         avatar = bey.AvatarSession(
@@ -92,17 +108,11 @@ async def my_agent(ctx: agents.JobContext):
         assistant.user_avatar = avatar
         assistant.user_ctx = ctx
 
+        # Start silence monitor only for timeout
         asyncio.create_task(silence_monitor(assistant))
 
         await avatar.start(session, ctx.room)
-
-        # 🔧 TRANSCRIPT HOOK (CRITICAL)
-        @session.on("user_transcript")
-        def on_transcript(transcript):
-            if hasattr(transcript, "text") and transcript.text.strip():
-                assistant.last_user_time = time.time()
-                assistant.user_speaking = True
-                print("Transcript:", transcript.text)
+        print("👤 Avatar started")
 
         noise_fn = (lambda _: None)
 
@@ -116,29 +126,28 @@ async def my_agent(ctx: agents.JobContext):
                 close_on_disconnect=False
             ),
         )
+        print("🎙️ Session started")
 
         # 🔧 DO NOT WAIT — START TALKING ASAP
         await session.generate_reply(
             instructions=SESSION_INSTRUCTION,
-            allow_interruptions=True      # 🔧 BIG WIN
+            allow_interruptions=True
         )
 
     except Exception as e:
-        print("Critical session error:", e)
+        print("❌ Critical session error:", e)
+        import traceback
+        traceback.print_exc()
 
 
 async def silence_monitor(agent: Assistant):
+    # Monitor ONLY for session timeout (user away), not for speech end
     while agent.session_active:
-        await asyncio.sleep(0.05)  # Check every 50ms for ultra-fast reply trigger
-
-        # 🔧 IF USER STOPPED SPEAKING → FORCE RESPONSE (0.20s = aggressive chunking, faster reply)
-        if agent.user_speaking and time.time() - agent.last_user_time > 0.20:
-            agent.user_speaking = False
-            await agent.user_session.generate_reply()
+        await asyncio.sleep(1.0) 
 
         if time.time() - agent.last_user_time > USER_SILENCE_TIMEOUT:
+            print("⏱️ User silence timeout - ending session")
             await end_session_gracefully(agent, silent=True)
-            # Break to stop monitoring
             break
 
 

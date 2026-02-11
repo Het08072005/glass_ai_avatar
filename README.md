@@ -4,6 +4,7 @@
 Root directory me jaakar backend start karein:
 
 ```bash
+
 python -m uvicorn app.main:app --reload
 2. AI Agent Run (Direct Python File)
 Backend 
