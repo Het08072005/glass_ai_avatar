@@ -1,0 +1,20 @@
+# ShadeHub Production Caddy Configuration
+
+# Frontend Domain
+ui.34.235.32.139.nip.io {
+    reverse_proxy 127.0.0.1:5173
+}
+
+# Backend Domain (API & WebSocket)
+api.34.235.32.139.nip.io {
+    reverse_proxy 127.0.0.1:8000 {
+        # Performance/WebSocket Keep-Alives
+        flush_interval -1
+        
+        # Standard Proxy Headers
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

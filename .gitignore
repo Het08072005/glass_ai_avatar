@@ -1,0 +1,147 @@
+#################################
+# General
+#################################
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+
+#################################
+# Environment Variables
+#################################
+.env
+.env.local
+.env.development
+.env.production
+!.env.example
+!.env.production.example
+
+#################################
+# Python / FastAPI
+#################################
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+#################################
+# FastAPI / Uvicorn
+#################################
+uvicorn.log
+gunicorn.log
+
+#################################
+# Node / React
+#################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+#################################
+# React build output
+#################################
+build/
+dist/
+.vite/
+
+#################################
+# Next.js (if ever added)
+#################################
+.next/
+out/
+
+#################################
+# IDEs / Editors
+#################################
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+#################################
+# OS-specific
+#################################
+.DS_Store
+.AppleDouble
+.LSOverride
+ehthumbs.db
+Desktop.ini
+
+#################################
+# Docker
+#################################
+*.pid
+docker-compose.override.yml
+
+#################################
+# Database
+#################################
+*.db
+*.sqlite
+*.sqlite3
+
+#################################
+# Test & Development Files
+#################################
+test_*.py
+check_*.py
+*_test.py
+*.test.js
+*.spec.js
+
+# Backend test/utility files (keep aaa.py and ndb.py)
+backend/count_products.py
+backend/check_all_counts.py
+backend/check_db.py
+backend/check_tables.py
+backend/test_parser.py
+backend/test_search.py
+
+#################################
+# Temporary & Cache
+#################################
+*.cache
+.cache/
+.temp/
+temp/
+tmp/
+
+#################################
+# Deployment artifacts
+#################################
+*.zip
+*.tar.gz
+*.rar
+
+#################################
+# Logs
+#################################
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
