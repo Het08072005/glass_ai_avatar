@@ -6,44 +6,57 @@ export const connectWebSocket = (onMessage) => {
     return;
   }
 
-  console.log("Connecting WebSocket...");
-  const wsUrl = import.meta.env.VITE_WS_URL;
-  socket = new WebSocket(wsUrl);
+  let wsUrl = import.meta.env.VITE_WS_URL || "ws://127.0.0.1:8000/ws";
 
-  socket.onopen = () => {
-    console.log("WebSocket Connected");
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
-  };
+  // 🔐 Auto-fix protocol if mismatching window.location
+  if (window.location.protocol === "https:" && wsUrl.startsWith("ws:")) {
+    console.warn("Downgrading ws to wss because of HTTPS context");
+    wsUrl = wsUrl.replace("ws:", "wss:");
+  }
 
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      onMessage(data);
-    } catch (e) {
-      console.warn("WS Message Parse Error", e);
-    }
-  };
+  console.log("WebSocket: Attempting connection to:", wsUrl);
 
-  socket.onclose = (event) => {
-    console.log("WebSocket Closed:", event.code, event.reason);
-    socket = null;
+  try {
+    socket = new WebSocket(wsUrl);
 
-    // Auto-reconnect after 3 seconds
-    if (!reconnectTimer) {
-      reconnectTimer = setTimeout(() => {
-        console.log("Attempting WebSocket Reconnect...");
+    socket.onopen = () => {
+      console.log("✅ WebSocket Connected Successfully");
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
         reconnectTimer = null;
-        connectWebSocket(onMessage);
-      }, 3000);
-    }
-  };
+      }
+    };
 
-  socket.onerror = (error) => {
-    console.error("WebSocket Error:", error);
-  };
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("📥 WS Message Received:", data.type);
+        onMessage(data);
+      } catch (e) {
+        console.warn("❌ WS Message Parse Error", e);
+      }
+    };
+
+    socket.onclose = (event) => {
+      console.log("🔌 WebSocket Closed:", event.code, event.reason);
+      socket = null;
+
+      // Auto-reconnect after 3 seconds
+      if (!reconnectTimer) {
+        reconnectTimer = setTimeout(() => {
+          console.log("🔄 Attempting WebSocket Reconnect...");
+          reconnectTimer = null;
+          connectWebSocket(onMessage);
+        }, 3000);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error("❌ WebSocket Error:", error);
+    };
+  } catch (err) {
+    console.error("❌ WebSocket Initialization Failed:", err);
+  }
 };
 
 export const disconnectWebSocket = () => {
