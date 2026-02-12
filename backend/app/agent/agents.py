@@ -7,9 +7,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import certifi
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
-import asyncio, time, json
 from dotenv import load_dotenv
+load_dotenv()
 
+import asyncio, time, json
 from livekit import agents
 from livekit.agents import (
     AgentServer,
@@ -20,8 +21,6 @@ from livekit.agents import (
 from livekit.plugins import bey, deepgram, silero
 from app.agent.tools import search_products, end_conversation
 from app.agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
-
-load_dotenv()
 
 # 🔧 FORCE LOW LATENCY (NO DEPENDENCE ON ENV NOW)
 LOW_LATENCY_MODE = True

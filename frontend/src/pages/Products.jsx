@@ -62,10 +62,11 @@ const Products = () => {
     occasions: ["formal", "casual", "beach", "party", "sports", "office", "travel", "wedding"],
     frame_colors: [], lens_colors: [], lens_shapes: [], usages: [], arm_sizes: [], lens_sizes: [], bridge_sizes: []
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // 🔥 Initial true to prevent Flicker
   const [skip, setSkip] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [wsDataApplied, setWsDataApplied] = useState(false); // 🔥 Prevent overwriting AI results
 
   const inputRef = useRef(null);
   const observer = useRef();
@@ -92,6 +93,13 @@ const Products = () => {
   };
 
   const performSearch = async (isAppend = false) => {
+    // 🔥 If we just applied AI results via WS, skip the first automatic fetch to prevent overwrite
+    if (!isAppend && wsDataApplied) {
+      console.log("Skipping fetch: AI results already present.");
+      setWsDataApplied(false);
+      return;
+    }
+
     try {
       if (!isAppend) setLoading(true);
       const query = searchInput.trim();
@@ -147,11 +155,15 @@ const Products = () => {
     fetchFacets();
   }, []);
 
-  // 2. Immediate Fetch for Filter Changes
+  // 2. Immediate Fetch for Filter Changes & Initial Load
   useEffect(() => {
     if (isInitialLoad) {
       setIsInitialLoad(false);
-      // Wait for facets or use URL params handled below
+      // 🔥 If we have search params or it's the very first visit, we MUST fetch.
+      // But we skip if WS data already arrived (AI Agent scenario).
+      if (!wsDataApplied && !window.lastWSSearchResult) {
+        performSearch(false);
+      }
       return;
     }
     setSkip(0);
@@ -265,11 +277,14 @@ const Products = () => {
 
       const data = event.detail;
       if (data.products) {
+        console.log("Applying AI search results from WebSocket...");
         isFromWS.current = true;
+        setWsDataApplied(true); // 🔥 Lock next automated fetch
         setSearchInput(data.query || '');
         setAllProducts(data.products);
         setHasMore(false);
         setSkip(0);
+        setLoading(false); // Stop any pending skeleton
 
         const currentParams = Object.fromEntries(searchParams.entries());
         if (data.query) currentParams.q = data.query;
@@ -280,12 +295,22 @@ const Products = () => {
       }
     };
 
+    const handleWSLoading = () => {
+      setLoading(true);
+      setAllProducts([]);
+    };
+
     window.addEventListener("ws-search-result", handleWSResult);
+    window.addEventListener("ws-search-loading", handleWSLoading);
+
     if (window.lastWSSearchResult) {
       handleWSResult({ detail: window.lastWSSearchResult });
       window.lastWSSearchResult = null;
     }
-    return () => window.removeEventListener("ws-search-result", handleWSResult);
+    return () => {
+      window.removeEventListener("ws-search-result", handleWSResult);
+      window.removeEventListener("ws-search-loading", handleWSLoading);
+    };
   }, [searchParams, setSearchParams]);
 
   const handleClear = () => {
@@ -305,6 +330,7 @@ const Products = () => {
     setMaxPrice('');
     setSearchInput('');
     setSearchParams({});
+    setLoading(true);
   };
 
   const toggleFilter = (list, item, setter) => {
@@ -524,7 +550,7 @@ const Products = () => {
               </div>
             </div>
 
-            {loading ? (
+            {loading && allProducts.length === 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 {[...Array(12)].map((_, i) => (
                   <div key={i} className="flex flex-col h-full space-y-3 sm:space-y-4">
@@ -548,12 +574,19 @@ const Products = () => {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : !loading ? (
               <div className="text-center py-20 sm:py-40 glass rounded-[2rem] border border-dashed border-white/10">
-                <p className="text-white/30 text-xs tracking-[0.4em] uppercase mb-8 italic">Archive match not found</p>
-                <button onClick={handleClear} className="text-[#c5a059] border border-[#c5a059]/30 px-6 sm:px-10 py-3 sm:py-4 text-[10px] uppercase tracking-widest hover:bg-[#c5a059] hover:text-black transition-all">Reset Exploration</button>
+                <p className="text-white/30 text-xs tracking-[0.4em] uppercase mb-4 italic">
+                  {searchInput || selectedBrand.length || selectedCategory.length || minPrice || maxPrice
+                    ? "Specimens not found in this archive"
+                    : "Fetching latest additions from the vault..."}
+                </p>
+                <div className="space-y-4">
+                  <p className="text-white/10 text-[10px] uppercase tracking-widest">Try adjusting your filters or search query</p>
+                  <button onClick={handleClear} className="text-[#c5a059] border border-[#c5a059]/30 px-6 sm:px-10 py-3 sm:py-4 text-[10px] uppercase tracking-widest hover:bg-[#c5a059] hover:text-black transition-all">Clear Search & Filters</button>
+                </div>
               </div>
-            )}
+            ) : null}
 
             {hasMore && loading && <div className="py-10 sm:py-20 text-center text-[#c5a059] animate-pulse uppercase tracking-[0.5em] text-[10px]">Updating Piece Registry</div>}
           </main>

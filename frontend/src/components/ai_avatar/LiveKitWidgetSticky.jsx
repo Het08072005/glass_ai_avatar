@@ -41,6 +41,10 @@ const RoomDataListener = ({ navigate, location, onEndCall }) => {
             navigate(msg.url);
           }
         }
+        if (msg.type === "SEARCH_LOADING") {
+          console.log("AI Agent is searching...");
+          window.dispatchEvent(new CustomEvent("ws-search-loading", { detail: msg }));
+        }
       } catch (e) {
         console.error("Data decode error", e);
       }

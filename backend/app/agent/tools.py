@@ -1,6 +1,8 @@
 import httpx
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import asyncio
 from livekit.agents import function_tool, RunContext, ToolError
 # from app.websocket.manager import manager
