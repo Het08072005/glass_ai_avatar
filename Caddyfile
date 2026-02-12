@@ -1,21 +1,20 @@
-# Caddyfile for AWS Deployment
+# ShadeHub Production Caddy Configuration
 
-# Frontend Domain (UI)
+# Frontend Domain
 ui.34.235.32.139.nip.io {
-    # Proxy /glasses to backend (for 3D models/images if served relatively)
-    reverse_proxy /glasses/* localhost:8000
-
-    # Proxy to Vite dev server (npm run dev)
-    reverse_proxy localhost:5173
-
-    # For Production Build (Uncomment and use this instead of reverse_proxy above)
-    # root * frontend/dist
-    # file_server
-    # try_files {path} /index.html
+    reverse_proxy 127.0.0.1:5173
 }
 
-# Backend Domain (API)
+# Backend Domain (API & WebSocket)
 api.34.235.32.139.nip.io {
-    # Proxy to FastAPI backend (uvicorn)
-    reverse_proxy localhost:8000
+    reverse_proxy 127.0.0.1:8000 {
+        # Performance/WebSocket Keep-Alives
+        flush_interval -1
+        
+        # Standard Proxy Headers
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
 }

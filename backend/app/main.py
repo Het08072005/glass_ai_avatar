@@ -31,21 +31,28 @@ except Exception as e:
     print(f"[WARNING] Database initialization warning: {e}")
 
 # Configure CORS - Production Ready
-# Get allowed origins from environment variable
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ui.34.235.32.139.nip.io")
 allowed_origins = [
-    "http://localhost:5173",  # Local development
-    "http://127.0.0.1:5173",  # Local development alternative
-    "https://ui.34.235.32.139.nip.io", # Explicit AWS deployment domain
-    FRONTEND_URL,  # Production frontend URL from .env
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://ui.34.235.32.139.nip.io",
+    "https://api.34.235.32.139.nip.io",
+    FRONTEND_URL,
 ]
 
-# Remove duplicates and empty strings
+# Add any extra origins from .env (comma-separated)
+env_origins = os.getenv("ALLOW_ORIGINS", "")
+if env_origins:
+    allowed_origins.extend([o.strip() for o in env_origins.split(",")])
+
+# Clean: Unique values, no empty strings
 allowed_origins = list(set(filter(None, allowed_origins)))
+
+print(f"🚀 [CORS] Internal list of allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,  # Specific origins instead of "*"
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

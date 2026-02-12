@@ -10,17 +10,27 @@ export const connectWebSocket = (onMessage) => {
 
   // 🔐 Auto-fix protocol if mismatching window.location
   if (window.location.protocol === "https:" && wsUrl.startsWith("ws:")) {
-    console.warn("Downgrading ws to wss because of HTTPS context");
+    console.warn("🔐 Downgrading WS to WSS for HTTPS environment");
     wsUrl = wsUrl.replace("ws:", "wss:");
   }
 
-  console.log("WebSocket: Attempting connection to:", wsUrl);
+  console.log("🔌 WebSocket: Attempting connection to:", wsUrl);
 
   try {
     socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
       console.log("✅ WebSocket Connected Successfully");
+
+      // 🏓 Keep-alive: Send ping every 25 seconds to prevent proxy timeout
+      const pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send("ping");
+        }
+      }, 25000);
+
+      socket._pingInterval = pingInterval;
+
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -28,9 +38,10 @@ export const connectWebSocket = (onMessage) => {
     };
 
     socket.onmessage = (event) => {
+      if (event.data === "pong") return; // Ignore pong responses
       try {
         const data = JSON.parse(event.data);
-        console.log("📥 WS Message Received:", data.type);
+        console.log("📥 WS Message:", data.type);
         onMessage(data);
       } catch (e) {
         console.warn("❌ WS Message Parse Error", e);
@@ -39,6 +50,7 @@ export const connectWebSocket = (onMessage) => {
 
     socket.onclose = (event) => {
       console.log("🔌 WebSocket Closed:", event.code, event.reason);
+      if (socket && socket._pingInterval) clearInterval(socket._pingInterval);
       socket = null;
 
       // Auto-reconnect after 3 seconds
