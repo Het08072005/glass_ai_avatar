@@ -1,90 +1,75 @@
-# 🚀 COMPLETE AWS DEPLOYMENT GUIDE (Step-by-Step)
+# 🚀 COMPLETE AWS DEPLOYMENT GUIDE (SOURCE OF TRUTH)
 
-This guide allows you to deploy your **local project** (`test13`) directly to your **AWS Server** using the terminal.
+This guide provides the absolute end-to-end steps to deploy your `test13` project to AWS with **Full AI Voice**, **Secure WebSockets**, and **Fast Product Synchronization**.
 
 ### ✅ Prerequisites
-- **Local Project**: You are in the root folder `test13`.
-- **AWS Key**: You have `ai_avatar.pem` in this folder.
-- **Server IP**: `34.235.32.139` (or `34.229.64.156` if that was the one, but I used `34.235.32.139` based on your Caddyfile).
-- **Remote User**: `ubuntu`
-- **Remote Folder**: `/home/ubuntu/final_ecommerce_beyond`
+- Local folder: `test13`
+- AWS Key: `ai_avatar.pem` (in root)
+- Server IP: `34.235.32.139`
+- Domains: `ui.34.235.32.139.nip.io` (Frontend), `api.34.235.32.139.nip.io` (Backend)
 
 ---
 
-## 🛠️ STEP 1: Upload Your Fixed Project Code
-Run these commands **one by one** in your local terminal (PowerShell or Git Bash) to push your latest fixes to the server.
+## 🛠️ STEP 1: Upload Updated Files (Run Locally)
+Run these commands in your local PowerShell to push the latest end-to-end fixes (WebSocket keep-alive, CORS, AI Sync) to your server.
 
 ```powershell
-# 1. Upload Backend Agent Fixes (Critical for AI Voice)
-scp -i ai_avatar.pem -o StrictHostKeyChecking=no backend/app/agent/agents.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/agent/
-scp -i ai_avatar.pem -o StrictHostKeyChecking=no backend/app/agent/tools.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/agent/
+# 1. CORE CONFIGS
+scp -i ai_avatar.pem Caddyfile ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/
+scp -i ai_avatar.pem backend/app/main.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/
 
-# 2. Upload Backend Main App (Critical for CORS)
-scp -i ai_avatar.pem -o StrictHostKeyChecking=no backend/app/main.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/
+# 2. WEBSOCKET & PRODUCT SYNC FIXES
+scp -i ai_avatar.pem frontend/src/websocket.js ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/frontend/src/
+scp -i ai_avatar.pem backend/app/websocket/routes.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/websocket/
+scp -i ai_avatar.pem frontend/src/pages/Products.jsx ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/frontend/src/pages/
+scp -i ai_avatar.pem frontend/src/components/ai_avatar/LiveKitWidgetSticky.jsx ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/frontend/src/components/ai_avatar/
 
-# 3. Upload Frontend Config (Critical for connection)
-scp -i ai_avatar.pem -o StrictHostKeyChecking=no frontend/vite.config.js ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/frontend/
-scp -i ai_avatar.pem -o StrictHostKeyChecking=no frontend/.env.production ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/frontend/
-
-# 4. Upload Caddyfile (Critical for HTTPS Domain)
-scp -i ai_avatar.pem -o StrictHostKeyChecking=no Caddyfile ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/
+# 3. AI AGENT & PROMPT REPAIRS
+scp -i ai_avatar.pem backend/app/agent/agents.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/agent/
+scp -i ai_avatar.pem backend/app/agent/tools.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/agent/
+scp -i ai_avatar.pem backend/app/agent/prompts.py ubuntu@34.235.32.139:/home/ubuntu/final_ecommerce_beyond/backend/app/agent/
 ```
 
 ---
 
-## 🔧 STEP 2: Configure Server (Run via SSH)
+## 🔧 STEP 2: Server Setup (Run via SSH)
+Connect: `ssh -i ai_avatar.pem ubuntu@34.235.32.139`
 
-Connect to your server:
-```powershell
-ssh -i ai_avatar.pem ubuntu@34.235.32.139
-```
-
-Once inside the server, run these commands:
-
-### 1. Go to Project Directory
+### 1. Update Environment Variables
+Ensure `.env` files are correct:
 ```bash
-cd final_ecommerce_beyond
-```
+cd ~/final_ecommerce_beyond
 
-### 2. Setup Environment Variables
-```bash
-# Frontend
+# Frontend: Use production URLS
 cp frontend/.env.production frontend/.env
 
-# Backend (Append the internal URL fix without deleting your keys)
+# Backend: Fix internal communication for the agent
+# Make sure your backend/.env has the REAL Gemini/LiveKit keys!
 echo "INTERNAL_API_URL=http://127.0.0.1:8000" >> backend/.env
+echo "FRONTEND_URL=https://ui.34.235.32.139.nip.io" >> backend/.env
 ```
 
-### 3. Install Dependencies
+### 2. Install/Refresh Deps (If needed)
 ```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-cd ..
-
-# Frontend
-cd frontend
-npm install
-cd ..
+cd backend && pip install -r requirements.txt && cd ..
+cd frontend && npm install && cd ..
 ```
 
 ---
 
-## ⚡ STEP 3: Restart Services (End-to-End)
+## ⚡ STEP 3: RESTART SYSTEM (THE RELOAD SEQUENCE)
+You MUST restart everything in this exact order to clear old sockets.
 
-You need to stop running services and start new ones.
-
-### 1. Stop Existing Services
-(Try to kill old processes to free up ports)
+### 1. Kill everything
 ```bash
 pkill -f python
 pkill -f node
 pkill -f caddy
 ```
 
-### 2. Start Caddy (HTTPS Gateway)
+### 2. Start Caddy (HTTPS & Domain Gateway)
 ```bash
-# Run in background
+# Verify Caddyfile exists in root
 nohup caddy run --config Caddyfile > caddy.log 2>&1 &
 ```
 
@@ -92,38 +77,33 @@ nohup caddy run --config Caddyfile > caddy.log 2>&1 &
 ```bash
 cd backend
 nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
-cd ..
 ```
 
-### 4. Start AI Agent
+### 4. Start AI Agent (Wait 5s after Backend starts)
 ```bash
-cd backend/app/agent
+sleep 5
+cd ~/final_ecommerce_beyond/backend/app/agent
 nohup python agents.py start > agent.log 2>&1 &
-cd ../../..
 ```
 
 ### 5. Start Frontend
 ```bash
-cd frontend
+cd ~/final_ecommerce_beyond/frontend
 nohup npm run dev -- --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
-cd ..
 ```
 
 ---
 
-## ✅ STEP 4: Verify Deployment
-
-1.  **Open in Browser**: `https://ui.34.235.32.139.nip.io`
-2.  **Check Console**: If there are errors, check the logs on server:
-    ```bash
-    tail -f backend.log
-    tail -f agent.log
-    ```
+## ✅ STEP 4: VERIFICATION
+1. Open Your Browser to: `https://ui.34.235.32.139.nip.io`
+2. Open Console (F12) -> should see `✅ WebSocket Connected Successfully`.
+3. If you see `1006` or `CORS Error`, check `tail -f ~/final_ecommerce_beyond/backend.log`.
 
 ---
 
-### 🚨 Common Fixes Included in This Deployment:
-1.  **Socket Error**: Fixed by Caddyfile proxying `/api` correctly.
-2.  **Agent Not Speaking**: Fixed by restoring `agents.py` with `inference` module (as requested) + connection repairs.
-3.  **Media Permission Error**: Fixed by serving over **HTTPS** via Caddy (Browser blocks mic on HTTP).
-4.  **CORS Error**: Fixed by updating `allowed_origins` in `main.py`.
+### 🛡️ What we fixed in this run:
+- **WebSocket 1006 Error**: Added `ping/pong` keep-alives every 25s.
+- **CORS Blocked**: Updated `main.py` with the correct `nip.io` origins.
+- **AI Silence**: Forced `agents.py` to greet using `SESSION_INSTRUCTION` on start.
+- **Protocol Mismatch**: Automatically upgrades `ws://` to `wss://` in production.
+- **Product Overwrite**: Products page now locks state when AI search arrives.
