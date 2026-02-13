@@ -126,24 +126,36 @@ function AppContent() {
   React.useEffect(() => {
     // 🌐 Start Global WebSocket Connection
     connectWebSocket((data) => {
-      console.log("Global WS Message:", data);
-      if (data.type === "SEARCH_RESULT") {
-        // 🔥 Store globally so it survives navigation to /products
-        window.lastWSSearchResult = data;
+      // 🏓 Suppress ping/pong logs
+      if (data.type === "pong") return;
 
-        // 🔥 Dispatch a custom event for if the user is already on the page
-        const event = new CustomEvent("ws-search-result", { detail: data });
-        window.dispatchEvent(event);
+      console.log("Global WS Message Received:", data.type);
+
+      if (data.type === "SEARCH_LOADING") {
+        console.log("📥 SOURCE: WebSocket (Loading):", data.query);
+        if (data.query) window.lastWSSearchQuery = data.query;
+        window.dispatchEvent(new CustomEvent("ws-search-loading", { detail: data }));
+      }
+
+      if (data.type === "SEARCH_RESULT") {
+        console.log("📥 SOURCE: WebSocket (Result):", data.query);
+        window.lastWSSearchResult = data;
+        if (data.query) window.lastWSSearchQuery = data.query;
+        window.dispatchEvent(new CustomEvent("ws-search-result", { detail: data }));
       }
 
       if (data.type === "END_SESSION") {
         console.log("⚡⚡⚡ GLOBAL END_SESSION RECEIVED - KILLING AI NOW ⚡⚡⚡");
+        // 🔥 Cleanup global search states on end
+        window.lastWSSearchQuery = null;
+        window.lastWSSearchResult = null;
         window.dispatchEvent(new CustomEvent("ws-end-session"));
       }
     });
 
     return () => disconnectWebSocket();
   }, []);
+
 
   return (
     <div className="min-h-screen flex flex-col">

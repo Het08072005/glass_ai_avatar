@@ -51,7 +51,7 @@ const Products = () => {
   const [sortBy, setSortBy] = useState('popular');
 
   // Search State
-  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || window.lastWSSearchQuery || '');
   const [allProducts, setAllProducts] = useState([]);
   const [facets, setFacets] = useState({
     brands: [],
@@ -71,19 +71,16 @@ const Products = () => {
   const inputRef = useRef(null);
   const observer = useRef();
   const isFromWS = useRef(false);
-  const lastPushedQuery = useRef(searchParams.get('q') || '');
+  const lastPushedQuery = useRef(searchParams.get('q') || window.lastWSSearchQuery || '');
 
-  // Sync search input from URL - Handling navigation/back-button updates
+  const lastAiQueryRef = useRef('');
+
+  // ⚡ DEPLOYMENT DEBUG: Monitor AI Query Channel
   useEffect(() => {
-    const q = searchParams.get('q') || '';
-    // If the URL query is different from what we last pushed, it means it's an external change (Nav, Back Btn)
-    // So we must sync the input to match it.
-    // ALSO: strictly DO NOT sync if the user is currently focused on the input (typing/pasting)
-    if (q !== lastPushedQuery.current && document.activeElement !== inputRef.current) {
-      setSearchInput(q);
-      lastPushedQuery.current = q;
+    if (window.lastWSSearchQuery) {
+      console.log("🛠️ DEBUG: Persistent AI Query found on mount:", window.lastWSSearchQuery);
     }
-  }, [searchParams.get('q')]);
+  }, []);
 
   const fetchFacets = async () => {
     try {
@@ -93,7 +90,7 @@ const Products = () => {
   };
 
   const performSearch = async (isAppend = false) => {
-    // 🔥 If we just applied AI results via WS, skip the first automatic fetch to prevent overwrite
+    // 🔥 If we just applied AI results via WS/LiveKit, skip the first automatic fetch
     if (!isAppend && wsDataApplied) {
       console.log("Skipping fetch: AI results already present.");
       setWsDataApplied(false);
@@ -159,8 +156,7 @@ const Products = () => {
   useEffect(() => {
     if (isInitialLoad) {
       setIsInitialLoad(false);
-      // 🔥 If we have search params or it's the very first visit, we MUST fetch.
-      // But we skip if WS data already arrived (AI Agent scenario).
+      // 🔥 Skip if AI results are already in global window storage
       if (!wsDataApplied && !window.lastWSSearchResult) {
         performSearch(false);
       }
@@ -269,49 +265,84 @@ const Products = () => {
     setSearchParams(updatedParams, { replace: true });
   };
 
-  // Listen for Global WebSocket Searches (AI Agent Integration)
+  // Listen for Global Search Updates (AI Agent Integration)
   useEffect(() => {
     const handleWSResult = (event) => {
-      // If user is typing, ignore incoming WS search overrides to prevent interruptions
-      if (document.activeElement === inputRef.current) return;
-
       const data = event.detail;
-      if (data.products) {
-        console.log("Applying AI search results from WebSocket...");
-        isFromWS.current = true;
-        setWsDataApplied(true); // 🔥 Lock next automated fetch
-        setSearchInput(data.query || '');
-        setAllProducts(data.products);
-        setHasMore(false);
-        setSkip(0);
-        setLoading(false); // Stop any pending skeleton
+      if (!data || !data.products) return;
 
-        const currentParams = Object.fromEntries(searchParams.entries());
-        if (data.query) currentParams.q = data.query;
-        else delete currentParams.q;
+      console.log("Applying AI search results from Data Channel:", data.query);
 
-        lastPushedQuery.current = data.query || '';
-        setSearchParams(currentParams, { replace: true });
+      // 1. Update State
+      isFromWS.current = true;
+      setWsDataApplied(true);
+      setAllProducts(data.products);
+      setHasMore(false);
+      setSkip(0);
+      setLoading(false);
+
+      if (data.query) {
+        setSearchInput(data.query);
+        window.lastWSSearchQuery = null; // 🔥 Clear after use
+        window.lastWSSearchResult = null; // 🔥 Clear after use
+        lastPushedQuery.current = data.query;
+        lastAiQueryRef.current = data.query;
+
+        // 2. Update URL (Forcefully use fresh search params)
+        const params = new URLSearchParams(window.location.search);
+        params.set('q', data.query);
+        setSearchParams(params, { replace: true });
       }
     };
 
-    const handleWSLoading = () => {
+    const handleWSLoading = (event) => {
+      const data = event.detail;
+      console.log("AI search loading signal received:", data?.query);
+
       setLoading(true);
       setAllProducts([]);
+
+      if (data?.query) {
+        setSearchInput(data.query);
+        window.lastWSSearchQuery = null; // 🔥 Clear after use
+        lastPushedQuery.current = data.query;
+        lastAiQueryRef.current = data.query;
+        setWsDataApplied(true);
+
+        // Update URL immediately so bar fills during load
+        const params = new URLSearchParams(window.location.search);
+        params.set('q', data.query);
+        setSearchParams(params, { replace: true });
+      }
     };
 
     window.addEventListener("ws-search-result", handleWSResult);
     window.addEventListener("ws-search-loading", handleWSLoading);
 
-    if (window.lastWSSearchResult) {
-      handleWSResult({ detail: window.lastWSSearchResult });
-      window.lastWSSearchResult = null;
-    }
+    // Initial check for results/query stored before mount
+    const checkInitialData = () => {
+      if (window.lastWSSearchResult) {
+        handleWSResult({ detail: window.lastWSSearchResult });
+        window.lastWSSearchResult = null;
+        window.lastWSSearchQuery = null;
+      } else if (window.lastWSSearchQuery) {
+        setSearchInput(window.lastWSSearchQuery);
+        lastPushedQuery.current = window.lastWSSearchQuery;
+        lastAiQueryRef.current = window.lastWSSearchQuery;
+        window.lastWSSearchQuery = null;
+      }
+    };
+
+    // Run check immediately and after a short delay for stability
+    checkInitialData();
+    const timer = setTimeout(checkInitialData, 300);
+
     return () => {
       window.removeEventListener("ws-search-result", handleWSResult);
       window.removeEventListener("ws-search-loading", handleWSLoading);
+      clearTimeout(timer);
     };
-  }, [searchParams, setSearchParams]);
+  }, [setSearchParams]);
 
   const handleClear = () => {
     setSelectedBrand([]);

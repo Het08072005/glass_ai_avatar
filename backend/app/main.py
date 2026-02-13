@@ -37,6 +37,8 @@ allowed_origins = [
     "http://127.0.0.1:5173",
     "https://ui.34.235.32.139.nip.io",
     "https://api.34.235.32.139.nip.io",
+    "http://34.235.32.139", # Added explicit IP for AWS stability
+    "https://34.235.32.139", # Added explicit IP for AWS stability
     FRONTEND_URL,
 ]
 
