@@ -30,20 +30,39 @@ const RoomDataListener = ({ navigate, location, onEndCall }) => {
       try {
         const strData = new TextDecoder().decode(payload);
         const msg = JSON.parse(strData);
+        console.log("LiveKit Data Received:", msg.type);
 
-        if (msg.type === "end_conversation") {
-          console.log("Received end_conversation event - bypassing immediate disconnect in listener");
-          // Defer to handleDelayedEndCall or similar
+        if (msg.type === "END_SESSION" || msg.type === "end_conversation") {
+          console.log("Received end signal from AI Agent via Data Channel");
+          window.dispatchEvent(new CustomEvent("ws-end-session"));
         }
+
         if (msg.type === "navigate" && msg.url) {
-          if (location.pathname !== msg.url) {
-            console.log(`Navigating to ${msg.url}`);
+          console.log(`AI Navigation Triggered: ${msg.url}`);
+          // 🔥 If there's a query in the message, set it globally BEFORE navigating
+          if (msg.query) {
+            window.lastWSSearchQuery = msg.query;
+          }
+
+          // Allow navigation if the path OR query differs
+          const currentFullUrl = location.pathname + location.search;
+          if (currentFullUrl !== msg.url) {
+            console.log(`Performing Navigate: ${msg.url}`);
             navigate(msg.url);
           }
         }
+
         if (msg.type === "SEARCH_LOADING") {
-          console.log("AI Agent is searching...");
+          console.log("📥 SOURCE: LiveKit Data Channel (Loading):", msg.query);
+          if (msg.query) window.lastWSSearchQuery = msg.query;
           window.dispatchEvent(new CustomEvent("ws-search-loading", { detail: msg }));
+        }
+
+        if (msg.type === "SEARCH_RESULT") {
+          console.log("📥 SOURCE: LiveKit Data Channel (Result):", msg.query);
+          window.lastWSSearchResult = msg;
+          if (msg.query) window.lastWSSearchQuery = msg.query;
+          window.dispatchEvent(new CustomEvent("ws-search-result", { detail: msg }));
         }
       } catch (e) {
         console.error("Data decode error", e);
@@ -162,6 +181,10 @@ const LiveKitWidgetSticky = () => {
     setToken(null);
     tokenRequestedRef.current = false;
 
+    // 🔥 Cleanup global search states on manual end
+    window.lastWSSearchQuery = null;
+    window.lastWSSearchResult = null;
+
     // ⚡ 2. Close the widget immediately (The "Autoclick" effect)
     setIsOpen(false);
     setHasManuallyClosed(true); // 🛑 STOP the auto-connect loop!
@@ -170,6 +193,10 @@ const LiveKitWidgetSticky = () => {
 
   const handleDelayedEndCall = useCallback(() => {
     console.log("⏳ RECEIVED AUTO-END SIGNAL. Waiting for final speech...");
+    // 🔥 Cleanup global search states on auto end
+    window.lastWSSearchQuery = null;
+    window.lastWSSearchResult = null;
+
     // Wait about 7 seconds for "Thank you! Have a nice day!" to finish
     setTimeout(() => {
       handleEndCall();
@@ -260,10 +287,6 @@ const LiveKitWidgetSticky = () => {
             connect={true}
             audio={true}
             onDisconnected={handleEndCall}
-            onMediaDeviceError={(e) => {
-              console.error("LiveKit Media Error:", e);
-              setMediaError("Audio output blocked by browser. Click anywhere to enable.");
-            }}
             className="w-full h-full relative"
           >
             <RoomAudioRenderer />

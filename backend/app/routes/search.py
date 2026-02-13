@@ -78,7 +78,7 @@ async def search(
     products_pydantic = [ProductResponse.model_validate(p) for p in products]
     products_json = jsonable_encoder(products_pydantic)
     
-    # Broadcast to WebSocket clients
+    # ✅ RESTORED: Broadcast to WebSocket clients for multi-channel sync
     await manager.broadcast({
         "type": "SEARCH_RESULT",
         "query": q or "",
@@ -109,10 +109,10 @@ async def add_product(
     db_product = Product(**product.dict())
     created = SearchService.add_product(db, db_product)
 
-    await manager.broadcast({
-        "type": "PRODUCT_ADDED",
-        "product": jsonable_encoder(created)
-    })
+    # await manager.broadcast({
+    #     "type": "PRODUCT_ADDED",
+    #     "product": jsonable_encoder(created)
+    # })
 
     return created
 
@@ -162,12 +162,12 @@ async def get_all_products(
     }
     products = SearchService.get_all(db, skip=skip, limit=limit, filters=filters)
 
-    await manager.broadcast({
-        "type": "ALL_PRODUCTS",
-        "count": len(products),
-        "skip": skip,
-        "limit": limit
-    })
+    # await manager.broadcast({
+    #     "type": "ALL_PRODUCTS",
+    #     "count": len(products),
+    #     "skip": skip,
+    #     "limit": limit
+    # })
     return products
 
 
