@@ -27,42 +27,44 @@ async def search_products(
     Search products and trigger a navigation event on the frontend.
     """
     print(f"DEBUG: search_products tool called with query='{query}' and category='{category}'")
-    if not query or not query.strip():
+    query_val = query.strip()
+    if not query_val:
         raise ToolError("Search query is empty")
 
-    params = {"q": query.strip()}
+    params = {"q": query_val}
     if category:
         params["category"] = category.strip()
 
     try:
         # ⚡ 1. IMMEDIATE NAVIGATION / "LOADING" SIGNAL TO FRONTEND
+        # We send this to BOTH LiveKit and Global WebSocket immediately
         try:
+            # A. LiveKit Data Channel
             if hasattr(ctx, 'room') and ctx.room:
-                # 🔥 1. NAVIGATE WITH QUERY IN URL (The surest way to autofill)
-                query_val = query.strip()
-                nav_url = f"/products?q={query_val}"
-                
                 payload_nav = json.dumps({
                     "type": "navigate", 
-                    "url": nav_url,
-                    "query": query_val # Redundancy to be safe
+                    "url": f"/products?q={query_val}",
+                    "query": query_val
                 })
-                
-                # 🔥 2. SIGNAL LOADING (Keep UI in sync)
                 payload_load = json.dumps({
                     "type": "SEARCH_LOADING", 
                     "status": True,
                     "query": query_val
                 })
-                
                 await ctx.room.local_participant.publish_data(payload_nav.encode("utf-8"), reliable=True)
                 await ctx.room.local_participant.publish_data(payload_load.encode("utf-8"), reliable=True)
-                print(f"DEBUG: Sent navigate and loading for {query_val}")
+
+            # B. Global WebSocket (Force Update)
+            internal_url = os.getenv('INTERNAL_API_URL', 'http://127.0.0.1:8000')
+            await http_client.post(f"{internal_url}/broadcast", json={
+                "type": "SEARCH_LOADING",
+                "query": query_val
+            })
+            print(f"DEBUG: Sent navigate and loading for {query_val}")
         except Exception as e:
-            print(f"Signal failure: {e}")
+            print(f"Initial signal failure (continuing): {e}")
 
         # ⚡ 2. FAST DB LOOKUP (Reusing Global Client)
-        # Using global client avoids SSL handshake overhead (~300ms saved)
         res = await http_client.get(FASTAPI_URL, params=params)
         res.raise_for_status()
 
@@ -70,38 +72,28 @@ async def search_products(
         if not isinstance(products, list):
             raise ToolError("Unexpected response format from backend")
 
-        # ⚡ 3. SEND RESULTS TO FRONTEND VIA DATA CHANNEL & WEBSOCKET
+        # ⚡ 3. SEND RESULTS TO FRONTEND
+        # Note: Backend's /api/search also broadcasts SEARCH_RESULT, 
+        # but we repeat it here for reliability and to ensure query_val sync.
         try:
+            payload_result = {
+                "type": "SEARCH_RESULT",
+                "query": query_val,
+                "products": products[:20]
+            }
+            
             # A. LiveKit Data Channel
             if hasattr(ctx, 'room') and ctx.room:
-                preview_products = products[:12]
-                payload_result = {
-                    "type": "SEARCH_RESULT",
-                    "query": query_val,
-                    "products": preview_products
-                }
                 await ctx.room.local_participant.publish_data(json.dumps(payload_result).encode("utf-8"), reliable=True)
-                print(f"DEBUG: Pushed {len(preview_products)} products via LiveKit")
+                print(f"DEBUG: Pushed {len(products[:12])} products via LiveKit")
 
-            # B. Global WebSocket (Force Update)
-            try:
-                # Also signal loading to WS
-                await http_client.post(f"{os.getenv('INTERNAL_API_URL', 'http://127.0.0.1:8000')}/broadcast", json={
-                    "type": "SEARCH_LOADING",
-                    "query": query_val
-                })
-                # Send result to WS
-                await http_client.post(f"{os.getenv('INTERNAL_API_URL', 'http://127.0.0.1:8000')}/broadcast", json={
-                    "type": "SEARCH_RESULT",
-                    "query": query_val,
-                    "products": jsonable_encoder(products[:20]) # More for WS
-                })
-                print(f"DEBUG: Broadcasted search '{query_val}' to Global WS")
-            except Exception as e:
-                print(f"WS Broadcast failure: {e}")
+            # B. Global WebSocket
+            internal_url = os.getenv('INTERNAL_API_URL', 'http://127.0.0.1:8000')
+            await http_client.post(f"{internal_url}/broadcast", json=payload_result)
+            print(f"DEBUG: Broadcasted search '{query_val}' to Global WS")
 
         except Exception as e:
-            print(f"Data publication failure: {e}")
+            print(f"Result publication failure (continuing): {e}")
 
         # ⚡ 4. FORMAT RESULTS FOR AGENT (Optimized for detailed speech)
         if products:
