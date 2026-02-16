@@ -129,9 +129,10 @@ async def my_agent(ctx: agents.JobContext):
         print("🎙️ Session started")
 
         # 🔧 FORCE INITIAL GREETING — Wait for frontend to stabilize
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(3.5)  # Increased delay for stability (3.5s)
+        print("🤖 Generating initial greeting...")
         await session.generate_reply(
-            instructions=f"{SESSION_INSTRUCTION} START THE CONVERSATION NOW by greeting the user.",
+            instructions=f"{SESSION_INSTRUCTION} START THE CONVERSATION NOW by greeting the user warmly.",
             allow_interruptions=True
         )
 

@@ -55,6 +55,13 @@ const RoomDataListener = ({ navigate, location, onEndCall }) => {
         if (msg.type === "SEARCH_LOADING") {
           console.log("📥 SOURCE: LiveKit Data Channel (Loading):", msg.query);
           if (msg.query) window.lastWSSearchQuery = msg.query;
+
+          // 🔥 FORCE NAVIGATION if on Home Page (Moved from token receipt to first search)
+          if (location.pathname === "/" || location.pathname === "") {
+            console.log("🚀 First Search triggered on Home - Navigating to /products");
+            navigate(`/products?q=${msg.query || ""}`);
+          }
+
           window.dispatchEvent(new CustomEvent("ws-search-loading", { detail: msg }));
         }
 
@@ -62,6 +69,13 @@ const RoomDataListener = ({ navigate, location, onEndCall }) => {
           console.log("📥 SOURCE: LiveKit Data Channel (Result):", msg.query);
           window.lastWSSearchResult = msg;
           if (msg.query) window.lastWSSearchQuery = msg.query;
+
+          // 🔥 FORCE NAVIGATION if on Home Page (Secondary check for safety)
+          if (location.pathname === "/" || location.pathname === "") {
+            console.log("🚀 First Search result on Home - Navigating to /products");
+            navigate(`/products?q=${msg.query || ""}`);
+          }
+
           window.dispatchEvent(new CustomEvent("ws-search-result", { detail: msg }));
         }
       } catch (e) {
@@ -165,6 +179,7 @@ const LiveKitWidgetSticky = () => {
     }
   }, [location.pathname, startSession, token, hasManuallyClosed]);
 
+  /* 
   // Trigger navigation when token is received on Home Page
   useEffect(() => {
     const isHomePage = location.pathname === "/" || location.pathname === "";
@@ -173,6 +188,7 @@ const LiveKitWidgetSticky = () => {
       navigate("/products");
     }
   }, [token, location.pathname, navigate]);
+  */
 
   const handleEndCall = useCallback(() => {
     console.log("🛑 FORCE KILLING SESSION INSTANTLY");
