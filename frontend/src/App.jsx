@@ -111,7 +111,7 @@
 
 
 import React from "react";
-import { BrowserRouter, useLocation } from "react-router-dom";
+import { BrowserRouter, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AppRoutes from "./routes/AppRoutes";
@@ -122,6 +122,7 @@ import { connectWebSocket, disconnectWebSocket } from "./websocket";
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     // 🌐 Start Global WebSocket Connection
@@ -134,6 +135,13 @@ function AppContent() {
       if (data.type === "SEARCH_LOADING") {
         console.log("📥 SOURCE: WebSocket (Loading):", data.query);
         if (data.query) window.lastWSSearchQuery = data.query;
+
+        // 🔥 FORCE NAVIGATION if on Home Page (Consolidated Logic)
+        if (window.location.pathname === "/" || window.location.pathname === "") {
+          console.log("🚀 WS First Search triggered on Home - Navigating...");
+          navigate(`/products?q=${data.query || ""}`);
+        }
+
         window.dispatchEvent(new CustomEvent("ws-search-loading", { detail: data }));
       }
 
@@ -141,6 +149,12 @@ function AppContent() {
         console.log("📥 SOURCE: WebSocket (Result):", data.query);
         window.lastWSSearchResult = data;
         if (data.query) window.lastWSSearchQuery = data.query;
+
+        // 🔥 FORCE NAVIGATION if on Home Page
+        if (window.location.pathname === "/" || window.location.pathname === "") {
+          navigate(`/products?q=${data.query || ""}`);
+        }
+
         window.dispatchEvent(new CustomEvent("ws-search-result", { detail: data }));
       }
 
